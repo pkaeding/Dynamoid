@@ -142,7 +142,7 @@ module Dynamoid
           key_schema: key_schema,
           attribute_definitions: attribute_definitions,
         }
-        if global_secondary_indexes
+        unless global_secondary_indexes.empty?
           create_table_params[:global_secondary_indexes] = global_secondary_indexes
           create_table_params[:attribute_definitions].concat(
             global_secondary_indexes.flat_map { |i| 
