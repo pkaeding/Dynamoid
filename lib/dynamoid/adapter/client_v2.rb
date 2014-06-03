@@ -117,6 +117,7 @@ module Dynamoid
         read_capacity = options.delete(:read_capacity) || Dynamoid::Config.read_capacity
         write_capacity = options.delete(:write_capacity) || Dynamoid::Config.write_capacity
         range_key = options.delete(:range_key)
+        global_secondary_indexes = options.delete(:global_secondary_indexes)
         
         key_schema = [
           { attribute_name: key.to_s, key_type: HASH_KEY }
@@ -132,18 +133,29 @@ module Dynamoid
           attribute_name: range_key.keys.first.to_s, attribute_type: api_type(range_key.values.first)
         } if(range_key)
         
-        client.create_table(table_name: table_name, 
+        create_table_params = {
+          table_name: table_name, 
           provisioned_throughput: {
             read_capacity_units: read_capacity, 
             write_capacity_units: write_capacity
           },
           key_schema: key_schema,
-          attribute_definitions: attribute_definitions
-        )
+          attribute_definitions: attribute_definitions,
+        }
+        if global_secondary_indexes
+          create_table_params[:global_secondary_indexes] = global_secondary_indexes
+          create_table_params[:attribute_definitions].concat(
+            global_secondary_indexes.flat_map { |i| 
+              i[:key_schema].map { |k| { attribute_name: k[:attribute_name], attribute_type: 'S' } }
+            })
+        end
+        client.create_table(create_table_params)
         sleep 0.5 while describe_table(table_name, reload = true).status() == 'CREATING'
         
         [:id, :table_name].each { |k| options.delete(k) }
         raise "Not empty options: #{options.keys.join(',')}" unless options.empty?
+
+        Dynamoid::Adapter.tables = Dynamoid::Adapter.list_tables
 
       rescue AWS::DynamoDB::Errors::ResourceInUseException => e
         #STDERR.puts("SWALLOWED AN EXCEPTION creating table #{table_name}")

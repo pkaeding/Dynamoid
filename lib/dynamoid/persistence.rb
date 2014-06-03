@@ -38,8 +38,10 @@ module Dynamoid
           :table_name => self.table_name,
           :write_capacity => self.write_capacity,
           :read_capacity => self.read_capacity,
-          :range_key => range_key_hash
+          :range_key => range_key_hash,
         }.merge(options)
+
+        options[:global_secondary_indexes] = self.global_secondary_indexes.values.map(&:to_hash) unless options.delete(:for_index)
 
         return true if table_exists?(options[:table_name])
 

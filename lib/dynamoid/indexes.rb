@@ -1,5 +1,6 @@
 # encoding: utf-8
 require 'dynamoid/indexes/index'
+require 'dynamoid/indexes/global_secondary_index'
 
 module Dynamoid #:nodoc:
 
@@ -12,8 +13,10 @@ module Dynamoid #:nodoc:
     # Make some helpful attributes to persist indexes.
     included do
       class_attribute :indexes
+      class_attribute :global_secondary_indexes
       
       self.indexes = {}
+      self.global_secondary_indexes = {}
     end
     
     module ClassMethods
@@ -27,7 +30,12 @@ module Dynamoid #:nodoc:
         self.indexes[index.name] = index
         create_indexes        
       end
-      
+
+      def global_index(name, options = {})
+        index = Dynamoid::Indexes::GlobalSecondaryIndex.new(self, name, options)
+        self.global_secondary_indexes[index.name] = index
+      end
+
       # Helper function to find indexes.
       #
       # @since 0.2.0
@@ -40,7 +48,7 @@ module Dynamoid #:nodoc:
       # @since 0.2.0
       def create_indexes
         self.indexes.each do |name, index|
-          opts = {:table_name => index.table_name, :id => :id}
+          opts = {:table_name => index.table_name, :id => :id, :for_index => true}
           opts[:range_key] = { :range => :number } if index.range_key?
           self.create_table(opts)
         end

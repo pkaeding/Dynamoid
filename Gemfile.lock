@@ -12,10 +12,9 @@ GEM
       tzinfo (~> 0.3.37)
     addressable (2.3.5)
     atomic (1.1.13)
-    aws-sdk (1.15.0)
+    aws-sdk (1.42.0)
       json (~> 1.4)
-      nokogiri (< 1.6.0)
-      uuidtools (~> 2.1)
+      nokogiri (>= 1.4.4)
     builder (3.1.4)
     coderay (1.0.9)
     diff-lcs (1.2.4)
@@ -94,7 +93,6 @@ GEM
       atomic
     tilt (1.4.1)
     tzinfo (0.3.37)
-    uuidtools (2.1.4)
     yard (0.8.7)
 
 PLATFORMS
@@ -102,7 +100,7 @@ PLATFORMS
 
 DEPENDENCIES
   activemodel
-  aws-sdk
+  aws-sdk (>= 1.42.0)
   bundler
   fake_dynamo (>= 0.2)
   github-markup
