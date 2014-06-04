@@ -88,7 +88,7 @@ module Dynamoid
               )
               results.data
               results.data[:responses].each do |table, rows|
-                ret[table] ||= [] << rows.collect { |r| result_item_to_hash(r) }
+                ret[table] = (ret[table] || []) + rows.collect { |r| result_item_to_hash(r) }
               end
             end
           end
