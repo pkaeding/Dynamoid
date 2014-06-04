@@ -82,12 +82,14 @@ module Dynamoid
         ret = Hash.new([].freeze) #Default for tables where no rows are returned
         unless request_item_groups.empty?
           request_item_groups.each do |group|
-            results = client.batch_get_item(
-              request_items: group
-            )
-            results.data
-            results.data[:responses].each do |table, rows|
-              ret[table] ||= [] << rows.collect { |r| result_item_to_hash(r) }
+            unless group.empty?
+              results = client.batch_get_item(
+                request_items: group
+              )
+              results.data
+              results.data[:responses].each do |table, rows|
+                ret[table] ||= [] << rows.collect { |r| result_item_to_hash(r) }
+              end
             end
           end
         end
