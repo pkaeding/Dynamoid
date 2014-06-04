@@ -257,7 +257,7 @@ module Dynamoid
       
       unless Dynamoid::Config.partitioning?
         #no paritioning? just pass to the standard query method
-        @adapter.query(table_name, opts)
+        adapter.query(table_name, opts)
       else
         #get all the hash_values that could be possible
         ids = id_with_partitions(opts[:hash_value])
