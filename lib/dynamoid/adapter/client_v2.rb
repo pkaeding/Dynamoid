@@ -41,7 +41,9 @@ module Dynamoid
       #
       # @since 0.2.0
       def batch_get_item(table_ids, options = {})
+        request_item_groups = []
         request_items = {}
+        current_count = 0
         table_ids.each do |t, ids|
           next if ids.empty?
           tbl = describe_table(t)
@@ -58,21 +60,35 @@ module Dynamoid
             end
           end
 
+          until keys.length <= 100 - current_count
+            this_block = keys.take(100 - current_count)
+            keys = keys.drop(100 - current_count)
+            request_items[t] = {
+              keys: this_block
+            }
+            request_item_groups << request_items
+            request_items = {}
+            current_count = 0
+          end
           request_items[t] = {
             keys: keys
           }
+          current_count += keys.length
         end
+        request_item_groups << request_items
 
         raise "Unhandled options remaining" unless options.empty?
 
         ret = Hash.new([].freeze) #Default for tables where no rows are returned
-        unless request_items.empty?
-          results = client.batch_get_item(
-            request_items: request_items
-          )
-          results.data
-          results.data[:responses].each do |table, rows|
-            ret[table] = rows.collect { |r| result_item_to_hash(r) }
+        unless request_item_groups.empty?
+          request_item_groups.each do |group|
+            results = client.batch_get_item(
+              request_items: group
+            )
+            results.data
+            results.data[:responses].each do |table, rows|
+              ret[table] ||= [] << rows.collect { |r| result_item_to_hash(r) }
+            end
           end
         end
         ret
