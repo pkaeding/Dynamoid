@@ -206,14 +206,18 @@ module Dynamoid
       # @since 0.2.0
       def get_item(table_name, key, options = {})
         table    = describe_table(table_name)
-        range_key = options.delete(:range_key)
-        
-        result = {}
-        
-        item = client.get_item(table_name: table_name, 
-          key: key_stanza(table, key, range_key)
-        )[:item]
-        item ? result_item_to_hash(item) : nil
+        if table
+          range_key = options.delete(:range_key)
+          
+          result = {}
+          
+          item = client.get_item(table_name: table_name, 
+            key: key_stanza(table, key, range_key)
+          )[:item]
+          item ? result_item_to_hash(item) : nil
+        else
+          nil
+        end
       rescue
         STDERR.puts("get_item FAILED ON #{key}, #{options}")
         STDERR.puts("----")
@@ -526,6 +530,8 @@ module Dynamoid
       def describe_table(table_name, reload = false)
         (!reload && table_cache[table_name]) || begin
           table_cache[table_name] = Table.new(client.describe_table(table_name: table_name).data)
+        rescue AWS::DynamoDB::Errors::ResourceNotFoundException
+          nil
         end
       end
       
