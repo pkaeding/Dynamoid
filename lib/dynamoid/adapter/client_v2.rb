@@ -47,6 +47,7 @@ module Dynamoid
         table_ids.each do |t, ids|
           next if ids.empty?
           tbl = describe_table(t)
+          next unless tbl
           hk  = tbl.hash_key.to_s
           rng = tbl.range_key.try :to_s
 
@@ -311,6 +312,46 @@ module Dynamoid
         STDERR.puts("---")
         PP.pp describe_table(table_name)
         raise
+      end
+
+      # Persist many items at once from DynamoDB. More efficient than persisting each item individually.
+      #
+      # @example Persist {"foo": "bar"} and {"foo": "bear"} to table1, assuming "foo" is primary key (must include key).
+      #   Dynamoid::Adapter::AwsSdk.batch_put_item({'table1' => [{"foo" => "bar"}, {"foo" => "bear"}]})
+      #
+      # @param [Hash] table_objects the hash of tables and objects to persist
+      # @param [Hash] options to be passed to underlying BatchPut call
+      #
+      # @return nil
+      # 
+      def batch_put_item(table_objects, options = {})
+        return nil if table_objects.all?{|k, v| v.empty?}
+        orig_options = options.clone
+
+        request_items = table_objects.to_a.inject(options) do |acc, kv|
+          table_name = kv[0]
+          acc[table_name] ||= []
+          kv[1].each do |object|
+            item = {}
+        
+            object.each do |k, v|
+              next if v.nil? || (v.respond_to?(:empty?) && v.empty?)
+              item[k.to_s] = attribute_value(v)
+            end
+            put_request = { :put_request => { :item => item } }
+            acc[table_name] << put_request
+          end
+          acc
+        end
+
+        def fire_request(body)
+          resp = client.batch_write_item(body)
+          fire_request({:request_items => resp.data[:unprocessed_items]}) unless resp.data[:unprocessed_items].empty?
+        end
+
+        fire_request({:request_items => request_items})
+
+        nil
       end
 
       # Query the DynamoDB table. This employs DynamoDB's indexes so is generally faster than scanning, but is

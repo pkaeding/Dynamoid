@@ -17,6 +17,35 @@ module Dynamoid
         @table_name ||= "#{Dynamoid::Config.namespace}_#{options[:name] || base_class.name.split('::').last.downcase.pluralize}"
       end
 
+      # Saves multiple items at once, saving on round trips to DynamoDB
+      #
+      # bulk_save() will increment the lock_version if the table has the column, but will not check it. 
+      # Thus, a concurrent save will never cause a bulk_save to fail, but a bulk_save may cause a concurrent 
+      # (non-bulk) save to fail. 
+      #
+      # @param [Array] items the items to be saved.  They don't all need to be of this class, or of 
+      #                      the same class. THe bulk write can support writing to multiple tables.
+      #
+      # @since 0.8.0
+      def bulk_save(items)
+        items.each_slice(25) do |slice|
+          batch_put_items = slice.inject({}) do |request_items, item|
+            item.class.create_table
+            request_items[item.class.table_name] ||= []
+            item.hash_key = SecureRandom.uuid if item.hash_key.nil? || item.hash_key.blank?
+            # Increment the optimistic locking version
+            if(item.class.attributes[:lock_version])
+              raise "Optimistic locking cannot be used with Partitioning" if(Dynamoid::Config.partitioning)
+              item.lock_version = (item.lock_version || 0) + 1 
+            end
+            request_items[item.class.table_name] << item.dump
+            request_items
+          end
+
+          Dynamoid::Adapter.batch_put_item(batch_put_items)
+        end
+      end
+
       # Creates a table.
       #
       # @param [Hash] options options to pass for table creation
