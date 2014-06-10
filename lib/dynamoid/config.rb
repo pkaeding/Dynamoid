@@ -38,7 +38,7 @@ module Dynamoid
     #
     # @since 0.2.0
     def logger
-      @logger ||= default_logger
+      @logger
     end
 
     # If you want to, set the logger manually to any output you'd like. Or pass false or nil to disable logging entirely.
@@ -46,10 +46,17 @@ module Dynamoid
     # @since 0.2.0
     def logger=(logger)
       case logger
-      when false, nil then @logger = nil
+      when false, nil then @logger = NoopLogger.new(nil)
       when true then @logger = default_logger
       else
         @logger = logger if logger.respond_to?(:info)
+      end
+    end
+
+    class NoopLogger < Logger
+      def info(*s)
+      end
+      def warn(*s)
       end
     end
 
