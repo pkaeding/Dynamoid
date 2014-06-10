@@ -459,7 +459,7 @@ module Dynamoid
             results = client.scan(request)
             results.data[:member].each { |row| y << result_item_to_hash(row) }
 
-            if((lk = results[:last_evaluated_key]) && batch)
+            if (lk = results[:last_evaluated_key])
               #TODO: Properly mix limit and batch
               request[:exclusive_start_key] = lk
             else
