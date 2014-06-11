@@ -99,6 +99,12 @@ module Dynamoid
         end
       end
 
+      def find_in_batches(options = {})
+        Dynamoid::Adapter.scan_in_batches(self.table_name, [], options).lazy.map do |b| 
+          b.map { |r| from_database(r) }
+        end
+      end
+
       # Find using exciting method_missing finders attributes. Uses criteria chains under the hood to accomplish this neatness.
       #
       # @example find a user by a first name

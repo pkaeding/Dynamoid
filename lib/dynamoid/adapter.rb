@@ -152,7 +152,7 @@ module Dynamoid
       end
     end
 
-    [:batch_get_item, :create_table, :delete_item, :delete_table, :get_item, :list_tables, :put_item, :batch_put_item].each do |m|
+    [:scan_in_batches, :batch_get_item, :create_table, :delete_item, :delete_table, :get_item, :list_tables, :put_item, :batch_put_item].each do |m|
       # Method delegation with benchmark to the underlying adapter. Faster than relying on method_missing.
       #
       # @since 0.2.0

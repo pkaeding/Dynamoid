@@ -438,6 +438,10 @@ module Dynamoid
       #
       # @since 0.2.0
       def scan(table_name, scan_hash, select_opts)
+        scan_in_batches(table_name, scan_hash, select_opts).flat_map{|b| b}
+      end
+
+      def scan_in_batches(table_name, scan_hash, select_opts)
         limit = select_opts.delete(:limit)
         batch = select_opts.delete(:batch_size)
         
@@ -457,8 +461,8 @@ module Dynamoid
           #Batch loop, pulls multiple requests until done using the start_key
           loop do
             results = client.scan(request)
-            results.data[:member].each { |row| y << result_item_to_hash(row) }
-
+            y << results.data[:member].map { |row| result_item_to_hash(row) }
+            
             if (lk = results[:last_evaluated_key])
               #TODO: Properly mix limit and batch
               request[:exclusive_start_key] = lk
