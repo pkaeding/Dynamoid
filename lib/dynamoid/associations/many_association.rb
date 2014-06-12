@@ -43,6 +43,10 @@ module Dynamoid #:nodoc:
         records.include?(object)
       end
 
+      def serializable_hash(opts)
+        records.map{|r| r.serializable_hash(opts)}
+      end
+
       # Deletes an object or array of objects from the association. This removes their records from the association field on the source,
       # and attempts to remove the source from the target association if it is detected to exist.
       #
