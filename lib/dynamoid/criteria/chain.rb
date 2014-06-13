@@ -168,19 +168,34 @@ module Dynamoid #:nodoc:
       #
       # @since 0.2.0
       def records_with_index
-        ids = ids_from_index
-        if ids.nil? || ids.empty?
-          [].to_enum
-        else
-          ids = ids.to_a
-
-          if @start
-            ids = ids.drop_while { |id| id != @start.hash_key }.drop(1)
+        if index.is_real_index
+          query_from_real_index.collect do |item|
+            source.from_database(item)
           end
+        else
+          ids = ids_from_index
+          if ids.nil? || ids.empty?
+            [].to_enum
+          else
+            ids = ids.to_a
 
-          ids = ids.take(@limit) if @limit
-          source.find(ids, consistent_opts)
+            if @start
+              ids = ids.drop_while { |id| id != @start.hash_key }.drop(1)
+            end
+
+            ids = ids.take(@limit) if @limit
+            source.find(ids, consistent_opts)
+          end
         end
+      end
+
+      def query_from_real_index
+        addl_opts = {
+          :index_name => index.index_name,
+          :hash_key => index.hash_key
+        }
+        addl_opts[:range_key] = index.range_key if index.range_key?
+        Dynamoid::Adapter.query(index.table_name, index_query.merge(consistent_opts).merge(addl_opts))
       end
 
       # Returns the Set of IDs from the index table.
@@ -237,11 +252,17 @@ module Dynamoid #:nodoc:
         {}.tap do |hash|
           hash[:hash_value] = values[:hash_value]
           if index.range_key?
-            key = query.keys.find{|k| k.to_s.include?('.')}
-            if key
-              hash.merge!(range_hash(key))
+            if index.is_real_index
+              key = index.range_key
+              hash[:range_value] = query[key]
+              raise Dynamoid::Errors::MissingRangeKey, 'This index requires a range key' unless query.has_key? key
             else
-              raise Dynamoid::Errors::MissingRangeKey, 'This index requires a range key'
+              key = query.keys.find{|k| k.to_s.include?('.')}
+              if key
+                hash.merge!(range_hash(key))
+              else
+                raise Dynamoid::Errors::MissingRangeKey, 'This index requires a range key'
+              end
             end
           end
         end

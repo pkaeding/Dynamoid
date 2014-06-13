@@ -26,6 +26,10 @@ module Dynamoid #:nodoc:
         
         raise Dynamoid::Errors::InvalidField, 'A key specified for an index is not a field' unless keys.all?{|n| source.attributes.include?(n)}
       end
+
+      def is_real_index
+        false
+      end
       
       # Sort objects into alphabetical strings, used for composing index names correctly (since we always assume they're alphabetical).
       #

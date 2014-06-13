@@ -371,14 +371,15 @@ module Dynamoid
       #
       # @since 0.2.0
       def query(table_name, opts = {})
-        table = describe_table(table_name)
-        hk    = table.hash_key.to_s
-        rng   = table.range_key.to_s
-        q     = opts.slice(:consistent_read, :scan_index_forward, :limit)
+        table   = describe_table(table_name)
+        hk      = (opts.delete(:hash_key) || table.hash_key).to_s
+        rng_key = (opts.delete(:range_key) ||  table.range_key).to_s
+        q       = opts.slice(:consistent_read, :scan_index_forward, :limit, :index_name)
 
         opts.delete(:consistent_read)
         opts.delete(:scan_index_forward)
         opts.delete(:limit)
+        opts.delete(:index_name)
         opts.delete(:next_token).tap do |token|
           break unless token
           q[:exclusive_start_key] = {
@@ -395,14 +396,30 @@ module Dynamoid
             ]
           }
         }
-        opts.each_pair do |k, v|
-          next unless(op = RANGE_MAP[k])
-          key_conditions[rng] = {
-            comparison_operator: op,
-            attribute_value_list: [
-              { NUM_TYPE => opts.delete(k).to_s.freeze }
-            ]
-          }
+        if rng_key && opts.has_key?(:range_value)
+          rng_val = opts.delete(:range_value)
+          if rng_val.nil?
+            key_conditions[rng_key.to_s] = {
+              comparison_operator: NULL
+            }
+          else
+            key_conditions[rng_key] = {
+              comparison_operator: EQ,
+              attribute_value_list: [
+                attribute_value(rng_val)
+              ]
+            }
+          end
+        else
+          opts.each_pair do |k, v|
+            next unless(op = RANGE_MAP[k])
+            key_conditions[rng_key] = {
+              comparison_operator: op,
+              attribute_value_list: [
+                { NUM_TYPE => opts.delete(k).to_s.freeze }
+              ]
+            }
+          end
         end
 
         q[:table_name]     = table_name
@@ -419,6 +436,7 @@ module Dynamoid
 
       EQ = "EQ".freeze
       ID = "id".freeze
+      NULL = "NULL".freeze
 
       RANGE_MAP = {
         range_greater_than: 'GT',
@@ -448,10 +466,16 @@ module Dynamoid
         request = { table_name: table_name }
         request[:limit] = batch || limit if batch || limit
         request[:scan_filter] = scan_hash.reduce({}) do |memo, kvp| 
-          memo[kvp[0].to_s] = {
-            attribute_value_list: [attribute_value(kvp[1])],
-            comparison_operator: EQ
-          }
+          if kvp[1].blank?
+            memo[kvp[0].to_s] = {
+              comparison_operator: NULL
+            }
+          else
+            memo[kvp[0].to_s] = {
+              attribute_value_list: [attribute_value(kvp[1])],
+              comparison_operator: EQ
+            }
+          end
           memo
         end if(scan_hash && !scan_hash.empty?)
                 
@@ -533,6 +557,9 @@ module Dynamoid
           when Numeric then
             type = NUM_TYPE
             value = value.to_s
+          when TrueClass, FalseClass then
+            type = STRING_TYPE
+            value = value ? 't' : 'f'
           else raise "Not sure how to infer type for #{value}"
           end
         end

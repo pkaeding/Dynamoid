@@ -26,6 +26,36 @@ module Dynamoid #:nodoc:
         raise Dynamoid::Errors::InvalidField, 'A key specified for an index is not a field' unless keys.all?{|n| source.attributes.include?(n)}
       end
 
+      def is_real_index
+        true
+      end
+
+      def table_name
+        source.table_name
+      end
+
+      # Given either an object or a list of attributes, generate a hash key and a range key for the index. Optionally pass in 
+      # true to changed_attributes for a list of all the object's dirty attributes in convenient index form (for deleting stale 
+      # information from the indexes).
+      #
+      # @param [Object] attrs either an object that responds to :attributes, or a hash of attributes
+      #
+      # @return [Hash] a hash with the keys :hash_value and :range_value
+      #
+      # @since 0.8.0
+      def values(attrs, changed_attributes = false)
+        if changed_attributes
+          hash = {}
+          attrs.changes.each {|k, v| hash[k.to_sym] = (v.first || v.last)}
+          attrs = hash
+        end
+        attrs = attrs.send(:attributes) if attrs.respond_to?(:attributes)
+        {}.tap do |hash|
+          hash[:hash_value] = attrs[hash_key]
+          hash[:range_value] = attrs[range_key]
+        end
+      end
+
       # Returns the projected fields (other than the keys values and the id) for the index
       #
       # @since 0.8.0

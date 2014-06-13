@@ -31,6 +31,7 @@ module Dynamoid #:nodoc:
         create_indexes        
       end
 
+      # @since 0.8.0
       def global_index(name, options = {})
         index = Dynamoid::Indexes::GlobalSecondaryIndex.new(self, name, options)
         self.global_secondary_indexes[index.name] = index
@@ -40,9 +41,16 @@ module Dynamoid #:nodoc:
       #
       # @since 0.2.0
       def find_index(index)
-        self.indexes[Array(index).collect(&:to_s).sort.collect(&:to_sym)]
+        self.indexes[Array(index).collect(&:to_s).sort.collect(&:to_sym)] || find_global_index(index)
       end
-      
+
+      # Helper function to find indexes.
+      #
+      # @since 0.8.0
+      def find_global_index(index)
+        self.global_secondary_indexes[Array(index).collect(&:to_s).sort.collect(&:to_sym)]
+      end
+
       # Helper function to create indexes (if they don't exist already).
       #
       # @since 0.2.0

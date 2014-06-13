@@ -254,7 +254,6 @@ module Dynamoid
     # @return [Array] an array of all matching items
     #
     def query(table_name, opts = {})
-      
       unless Dynamoid::Config.partitioning?
         #no paritioning? just pass to the standard query method
         adapter.query(table_name, opts)
